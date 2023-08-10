@@ -69,9 +69,7 @@ def Odds(p):
 
     Returns: float odds
     """
-    if p == 1:
-        return float("inf")
-    return p / (1 - p)
+    return float("inf") if p == 1 else p / (1 - p)
 
 
 def Probability(o):
@@ -124,8 +122,7 @@ class Interpolator(object):
             return ys[-1]
         i = bisect.bisect(xs, x)
         frac = 1.0 * (x - xs[i - 1]) / (xs[i] - xs[i - 1])
-        y = ys[i - 1] + frac * 1.0 * (ys[i] - ys[i - 1])
-        return y
+        return ys[i - 1] + frac * 1.0 * (ys[i] - ys[i - 1])
 
 
 # When we plot Hist, Pmf and Cdf objects, they don't appear in
@@ -172,17 +169,14 @@ class _DictWrapper(object):
 
     def __str__(self):
         cls = self.__class__.__name__
-        if self.label == DEFAULT_LABEL:
-            return "%s(%s)" % (cls, str(self.d))
-        else:
-            return self.label
+        return f"{cls}({str(self.d)})" if self.label == DEFAULT_LABEL else self.label
 
     def __repr__(self):
         cls = self.__class__.__name__
         if self.label == DEFAULT_LABEL:
-            return "%s(%s)" % (cls, repr(self.d))
+            return f"{cls}({repr(self.d)})"
         else:
-            return "%s(%s, %s)" % (cls, repr(self.d), repr(self.label))
+            return f"{cls}({repr(self.d)}, {repr(self.label)})"
 
     def __eq__(self, other):
         try:
@@ -311,7 +305,7 @@ class _DictWrapper(object):
             except TypeError:
                 return False
 
-        if any([isnan(x) for x in self.Values()]):
+        if any(isnan(x) for x in self.Values()):
             msg = "Keys contain NaN, may not sort correctly."
             logging.warning(msg)
 
@@ -379,8 +373,7 @@ class _DictWrapper(object):
 
     def Total(self):
         """Returns the total of the frequencies/probabilities in the map."""
-        total = sum(self.d.values())
-        return total
+        return sum(self.d.values())
 
     def MaxLike(self):
         """Returns the largest frequency/probability in the map."""
@@ -425,10 +418,7 @@ class Hist(_DictWrapper):
     def IsSubset(self, other):
         """Checks whether the values in this histogram are a subset of
         the values in the given histogram."""
-        for val, freq in self.Items():
-            if freq > other.Freq(val):
-                return False
-        return True
+        return all(freq <= other.Freq(val) for val, freq in self.Items())
 
     def Subtract(self, other):
         """Subtracts the values in the given histogram from this histogram."""
@@ -485,9 +475,8 @@ class Pmf(_DictWrapper):
         """
         if isinstance(x, _DictWrapper):
             return PmfProbGreater(self, x)
-        else:
-            t = [prob for (val, prob) in self.d.items() if val > x]
-            return sum(t)
+        t = [prob for (val, prob) in self.d.items() if val > x]
+        return sum(t)
 
     def ProbLess(self, x):
         """Probability that a sample from this Pmf is less than x.
@@ -498,9 +487,8 @@ class Pmf(_DictWrapper):
         """
         if isinstance(x, _DictWrapper):
             return PmfProbLess(self, x)
-        else:
-            t = [prob for (val, prob) in self.d.items() if val < x]
-            return sum(t)
+        t = [prob for (val, prob) in self.d.items() if val < x]
+        return sum(t)
 
     def ProbEqual(self, x):
         """Probability that a sample from this Pmf is exactly x.
@@ -509,10 +497,7 @@ class Pmf(_DictWrapper):
 
         returns: float probability
         """
-        if isinstance(x, _DictWrapper):
-            return PmfProbEqual(self, x)
-        else:
-            return self[x]
+        return PmfProbEqual(self, x) if isinstance(x, _DictWrapper) else self[x]
 
     # NOTE: I've decided to remove the magic comparators because they
     # have the side-effect of making Pmf sortable, but in fact they
@@ -1026,11 +1011,7 @@ class Cdf:
             self.ps = copy.copy(obj.ps)
             return
 
-        if isinstance(obj, _DictWrapper):
-            dw = obj
-        else:
-            dw = Hist(obj)
-
+        dw = obj if isinstance(obj, _DictWrapper) else Hist(obj)
         if len(dw) == 0:
             self.xs = np.asarray([])
             self.ps = np.asarray([])
@@ -1042,23 +1023,17 @@ class Cdf:
         self.ps /= self.ps[-1]
 
     def __str__(self):
-        cls = self.__class__.__name__
-        if self.label == DEFAULT_LABEL:
-            return "%s(%s, %s)" % (cls, str(self.xs), str(self.ps))
-        else:
+        if self.label != DEFAULT_LABEL:
             return self.label
+        cls = self.__class__.__name__
+        return f"{cls}({str(self.xs)}, {str(self.ps)})"
 
     def __repr__(self):
         cls = self.__class__.__name__
         if self.label == DEFAULT_LABEL:
-            return "%s(%s, %s)" % (cls, str(self.xs), str(self.ps))
+            return f"{cls}({str(self.xs)}, {str(self.ps)})"
         else:
-            return "%s(%s, %s, %s)" % (
-                cls,
-                str(self.xs),
-                str(self.ps),
-                repr(self.label),
-            )
+            return f"{cls}({str(self.xs)}, {str(self.ps)}, {repr(self.label)})"
 
     def __len__(self):
         return len(self.xs)
@@ -1137,8 +1112,7 @@ class Cdf:
         if x < self.xs[0]:
             return 0
         index = bisect.bisect(self.xs, x)
-        p = self.ps[index - 1]
-        return p
+        return self.ps[index - 1]
 
     def Probs(self, xs):
         """Gets probabilities for a sequence of values.
@@ -1273,8 +1247,7 @@ class Cdf:
             sequence of two floats, low and high
         """
         prob = (1 - percentage / 100) / 2
-        interval = self.Value(prob), self.Value(1 - prob)
-        return interval
+        return self.Value(prob), self.Value(1 - prob)
 
     ConfidenceInterval = CredibleInterval
 
@@ -1698,7 +1671,7 @@ class EstimatedPdf(Pdf):
         self.linspace = np.linspace(low, high, 101)
 
     def __str__(self):
-        return "EstimatedPdf(label=%s)" % str(self.label)
+        return f"EstimatedPdf(label={str(self.label)})"
 
     def GetLinspace(self):
         """Get a linspace for plotting.
@@ -1738,8 +1711,7 @@ def CredibleInterval(pmf, percentage=90):
     """
     cdf = pmf.MakeCdf()
     prob = (1 - percentage / 100) / 2
-    interval = cdf.Value(prob), cdf.Value(1 - prob)
-    return interval
+    return cdf.Value(prob), cdf.Value(1 - prob)
 
 
 def PmfProbLess(pmf1, pmf2):
@@ -1803,8 +1775,7 @@ def RandomSum(dists):
 
     returns: numerical sum
     """
-    total = sum(dist.Random() for dist in dists)
-    return total
+    return sum(dist.Random() for dist in dists)
 
 
 def SampleSum(dists, n):
@@ -1815,8 +1786,7 @@ def SampleSum(dists, n):
 
     returns: new Pmf of sums
     """
-    pmf = Pmf(RandomSum(dists) for i in range(n))
-    return pmf
+    return Pmf(RandomSum(dists) for _ in range(n))
 
 
 def EvalNormalPdf(x, mu, sigma):
@@ -2052,8 +2022,7 @@ def MakeParetoPmf(xm, alpha, high, num=101):
     """
     xs = np.linspace(xm, high, num)
     ps = stats.pareto.pdf(xs, alpha, scale=xm)
-    pmf = Pmf(dict(zip(xs, ps)))
-    return pmf
+    return Pmf(dict(zip(xs, ps)))
 
 
 def StandardNormalCdf(x):
@@ -2160,8 +2129,7 @@ def RenderParetoCdf(xmin, alpha, low, high, n=50):
 
     returns: numpy arrays (xs, ps)
     """
-    if low < xmin:
-        low = xmin
+    low = max(low, xmin)
     xs = np.linspace(low, high, n)
     ps = 1 - (xs / xmin) ** -alpha
     # ps = stats.pareto.cdf(xs, scale=xmin, b=alpha)
@@ -2237,20 +2205,16 @@ class Beta:
 
         if self.alpha < 1 or self.beta < 1:
             cdf = self.MakeCdf()
-            pmf = cdf.MakePmf()
-            return pmf
-
+            return cdf.MakePmf()
         xs = [i / (steps - 1.0) for i in range(steps)]
         probs = [self.EvalPdf(x) for x in xs]
-        pmf = Pmf(dict(zip(xs, probs)), label=label)
-        return pmf
+        return Pmf(dict(zip(xs, probs)), label=label)
 
     def MakeCdf(self, steps=101):
         """Returns the CDF of this distribution."""
         xs = [i / (steps - 1.0) for i in range(steps)]
         ps = special.betainc(self.alpha, self.beta, xs)
-        cdf = Cdf(xs, ps)
-        return cdf
+        return Cdf(xs, ps)
 
     def Percentile(self, ps):
         """Returns the given percentiles from this distribution.
@@ -2258,8 +2222,7 @@ class Beta:
         ps: scalar, array, or list of [0-100]
         """
         ps = np.asarray(ps) / 100
-        xs = special.betaincinv(self.alpha, self.beta, ps)
-        return xs
+        return special.betaincinv(self.alpha, self.beta, ps)
 
 
 class Dirichlet(object):
@@ -2392,10 +2355,7 @@ def NormalProbability(ys, jitter=0):
     xs = np.random.normal(0, 1, n)
     xs.sort()
 
-    if jitter:
-        ys = Jitter(ys, jitter)
-    else:
-        ys = np.array(ys)
+    ys = Jitter(ys, jitter) if jitter else np.array(ys)
     ys.sort()
 
     return xs, ys
@@ -2550,8 +2510,7 @@ def CohenEffectSize(group1, group2):
     var2 = group2.var()
 
     pooled_var = (n1 * var1 + n2 * var2) / (n1 + n2)
-    d = diff / math.sqrt(pooled_var)
-    return d
+    return diff / math.sqrt(pooled_var)
 
 
 def Cov(xs, ys, meanx=None, meany=None):
@@ -2574,8 +2533,7 @@ def Cov(xs, ys, meanx=None, meany=None):
     if meany is None:
         meany = np.mean(ys)
 
-    cov = np.dot(xs - meanx, ys - meany) / len(xs)
-    return cov
+    return np.dot(xs - meanx, ys - meany) / len(xs)
 
 
 def Corr(xs, ys):
@@ -2594,9 +2552,7 @@ def Corr(xs, ys):
     meanx, varx = MeanVar(xs)
     meany, vary = MeanVar(ys)
 
-    corr = Cov(xs, ys, meanx, meany) / math.sqrt(varx * vary)
-
-    return corr
+    return Cov(xs, ys, meanx, meany) / math.sqrt(varx * vary)
 
 
 def SerialCorr(series, lag=1):
@@ -2609,8 +2565,7 @@ def SerialCorr(series, lag=1):
     """
     xs = series[lag:]
     ys = series.shift(lag)[lag:]
-    corr = Corr(xs, ys)
-    return corr
+    return Corr(xs, ys)
 
 
 def SpearmanCorr(xs, ys):
@@ -2649,9 +2604,7 @@ def MapToRanks(t):
     # sort by index
     resorted = sorted(ranked, key=lambda trip: trip[1][0])
 
-    # extract the ranks
-    ranks = [trip[0] + 1 for trip in resorted]
-    return ranks
+    return [trip[0] + 1 for trip in resorted]
 
 
 def LeastSquares(xs, ys):
@@ -2699,8 +2652,7 @@ def Residuals(xs, ys, inter, slope):
     """
     xs = np.asarray(xs)
     ys = np.asarray(ys)
-    res = ys - (inter + slope * xs)
-    return res
+    return ys - (inter + slope * xs)
 
 
 def CoefDetermination(ys, res):
@@ -2796,8 +2748,7 @@ def PearsonMedianSkewness(xs):
     mean = RawMoment(xs, 1)
     var = CentralMoment(xs, 2)
     std = math.sqrt(var)
-    gp = 3 * (mean - median) / std
-    return gp
+    return 3 * (mean - median) / std
 
 
 class FixedWidthVariables(object):
@@ -2829,10 +2780,9 @@ class FixedWidthVariables(object):
 
         returns: DataFrame
         """
-        df = pandas.read_fwf(
+        return pandas.read_fwf(
             filename, colspecs=self.colspecs, names=self.names, **options
         )
-        return df
 
 
 def ReadStataDct(dct_file, **options):
@@ -2853,14 +2803,11 @@ def ReadStataDct(dct_file, **options):
             match = re.search(r"_column\(([^)]*)\)", line)
             if not match:
                 continue
-            start = int(match.group(1))
+            start = int(match[1])
             t = line.split()
             vtype, name, fstring = t[1:4]
             name = name.lower()
-            if vtype.startswith("str"):
-                vtype = str
-            else:
-                vtype = type_map[vtype]
+            vtype = str if vtype.startswith("str") else type_map[vtype]
             long_desc = " ".join(t[4:]).strip('"')
             var_info.append((start, vtype, name, fstring, long_desc))
 
@@ -2871,8 +2818,7 @@ def ReadStataDct(dct_file, **options):
     variables["end"] = variables.start.shift(-1)
     variables.loc[len(variables) - 1, "end"] = -1
 
-    dct = FixedWidthVariables(variables, index_base=1)
-    return dct
+    return FixedWidthVariables(variables, index_base=1)
 
 
 def Resample(xs, n=None):
@@ -2898,8 +2844,7 @@ def SampleRows(df, nrows, replace=False):
     returns: DataDf
     """
     indices = np.random.choice(df.index, nrows, replace=replace)
-    sample = df.loc[indices]
-    return sample
+    return df.loc[indices]
 
 
 def ResampleRows(df):
@@ -2923,8 +2868,7 @@ def ResampleRowsWeighted(df, column="finalwgt"):
     weights = df[column].copy()
     weights /= sum(weights)
     indices = np.random.choice(df.index, len(df), replace=True, p=weights)
-    sample = df.loc[indices]
-    return sample
+    return df.loc[indices]
 
 
 def PercentileRow(array, p):
@@ -2964,8 +2908,7 @@ def PercentileRows(ys_seq, percents):
 
     array = np.sort(array, axis=0)
 
-    rows = [PercentileRow(array, p) for p in percents]
-    return rows
+    return [PercentileRow(array, p) for p in percents]
 
 
 def Smooth(xs, sigma=2, **options):
